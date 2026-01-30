@@ -1,0 +1,168 @@
+-- 1. DATABASE CREATION
+CREATE DATABASE IF NOT EXISTS HospitalDB;
+USE HospitalDB;
+
+-- 2. SCHEMA DEFINITION (TABLES & RELATIONSHIPS)
+
+CREATE TABLE Patients (
+    patient_id INT PRIMARY KEY AUTO_INCREMENT,
+    name VARCHAR(100) NOT NULL,
+    dob DATE,
+    gender ENUM('Male', 'Female', 'Other'),
+    phone_number VARCHAR(15),
+    email VARCHAR(100),
+    address TEXT,
+    registration_date DATE DEFAULT (CURRENT_DATE)
+);
+
+CREATE TABLE Doctors (
+    doctor_id INT PRIMARY KEY AUTO_INCREMENT,
+    name VARCHAR(100) NOT NULL,
+    specialization VARCHAR(50),
+    phone_number VARCHAR(15),
+    email VARCHAR(100),
+    available_days VARCHAR(50),
+    consultation_fee DECIMAL(10, 2),
+    years_of_experience INT DEFAULT 0
+);
+
+CREATE TABLE Appointments (
+    appointment_id INT PRIMARY KEY AUTO_INCREMENT,
+    patient_id INT,
+    doctor_id INT,
+    appointment_date DATETIME,
+    status ENUM('Scheduled', 'Completed', 'Cancelled') DEFAULT 'Scheduled',
+    FOREIGN KEY (patient_id) REFERENCES Patients(patient_id) ON DELETE CASCADE,
+    FOREIGN KEY (doctor_id) REFERENCES Doctors(doctor_id) ON DELETE CASCADE
+);
+
+CREATE TABLE Medical_Records (
+    record_id INT PRIMARY KEY AUTO_INCREMENT,
+    patient_id INT,
+    doctor_id INT,
+    diagnosis TEXT,
+    prescription TEXT,
+    treatment_date DATE,
+    admission_date DATE,
+    discharge_date DATE,
+    FOREIGN KEY (patient_id) REFERENCES Patients(patient_id),
+    FOREIGN KEY (doctor_id) REFERENCES Doctors(doctor_id)
+);
+
+CREATE TABLE Billing (
+    invoice_id INT PRIMARY KEY AUTO_INCREMENT,
+    patient_id INT,
+    appointment_id INT,
+    amount DECIMAL(10, 2),
+    payment_status ENUM('Paid', 'Pending', 'Cancelled') DEFAULT 'Pending',
+    payment_date DATE,
+    FOREIGN KEY (patient_id) REFERENCES Patients(patient_id),
+    FOREIGN KEY (appointment_id) REFERENCES Appointments(appointment_id)
+);
+
+CREATE TABLE Departments (
+    department_id INT PRIMARY KEY AUTO_INCREMENT,
+    department_name VARCHAR(100) NOT NULL
+);
+
+CREATE TABLE Doctor_Department (
+    doctor_id INT,
+    department_id INT,
+    PRIMARY KEY (doctor_id, department_id),
+    FOREIGN KEY (doctor_id) REFERENCES Doctors(doctor_id),
+    FOREIGN KEY (department_id) REFERENCES Departments(department_id)
+);
+
+-- 3. INSERTING SAMPLE DATA (CRUD OPERATIONS)
+-- Insert Patients
+INSERT INTO Patients (name, dob, gender, phone_number, email, address, registration_date)
+VALUES 
+('John Doe', '1985-05-15', 'Male', '1234567890', 'john@example.com', '123 Maple St', '2025-01-10'),
+('Jane Smith', '1990-08-22', 'Female', '9876543210', 'jane@example.com', '456 Oak Ave', '2025-05-12'),
+('Robert Brown', '1975-11-30', 'Male', NULL, 'robert@example.com', '789 Pine Rd', '2024-11-20');
+
+-- Insert Doctors
+INSERT INTO Doctors (name, specialization, phone_number, consultation_fee, years_of_experience)
+VALUES 
+('Dr. Alice', 'Cardiology', '555-0101', 1200.00, 16),
+('Dr. Bob', 'Neurology', '555-0102', 1500.00, 8),
+('Dr. Charlie', 'Dermatology', ' 555-0103 ', 800.00, 3); -- Note whitespace for trim test
+
+-- Insert Departments
+INSERT INTO Departments (department_name) VALUES ('Cardiology'), ('Neurology'), ('Dermatology');
+
+-- Mapping
+INSERT INTO Doctor_Department VALUES (1, 1), (2, 2), (3, 3);
+
+-- Insert Appointments
+INSERT INTO Appointments (patient_id, doctor_id, appointment_date, status)
+VALUES 
+(1, 1, '2025-06-01 10:00:00', 'Completed'),
+(2, 2, '2025-06-02 11:30:00', 'Scheduled'),
+(1, 3, '2024-05-10 09:00:00', 'Cancelled'); -- Old cancelled appointment
+
+-- 4. FUNCTIONAL QUERIES (TASKS 2 - 12)
+
+-- Task 2: SQL Clauses
+SELECT * FROM Patients WHERE registration_date >= DATE_SUB(CURDATE(), INTERVAL 1 YEAR);
+SELECT * FROM Billing ORDER BY amount DESC LIMIT 5;
+SELECT * FROM Doctors WHERE consultation_fee > 1000;
+
+-- Task 3: Operators
+SELECT * FROM Appointments WHERE status = 'Scheduled' AND doctor_id = 3;
+SELECT * FROM Doctors WHERE specialization = 'Cardiology' OR specialization = 'Neurology';
+SELECT * FROM Patients WHERE patient_id NOT IN (
+    SELECT patient_id FROM Appointments WHERE appointment_date >= DATE_SUB(CURDATE(), INTERVAL 1 YEAR)
+);
+
+-- Task 4 & 5: Grouping & Aggregates
+SELECT specialization, COUNT(*) FROM Doctors GROUP BY specialization ORDER BY specialization;
+SELECT SUM(amount) AS total_revenue FROM Billing WHERE payment_status = 'Paid';
+SELECT AVG(consultation_fee) FROM Doctors;
+
+-- Task 7: Joins
+-- Inner Join: Doctors and Departments
+SELECT d.name, dep.department_name 
+FROM Doctors d
+JOIN Doctor_Department dd ON d.doctor_id = dd.doctor_id
+JOIN Departments dep ON dd.department_id = dep.department_id;
+
+-- Left Join: Patients with completed appointments
+SELECT p.name, a.appointment_date 
+FROM Patients p
+LEFT JOIN Appointments a ON p.patient_id = a.patient_id
+WHERE a.status = 'Completed';
+
+-- Task 8: Subqueries (Doctors handling > 50 patients - logic check)
+SELECT name FROM Doctors WHERE doctor_id IN (
+    SELECT doctor_id FROM Appointments GROUP BY doctor_id HAVING COUNT(patient_id) > 50
+);
+
+-- Task 9: Date Functions
+SELECT MONTH(appointment_date) AS Month, COUNT(*) FROM Appointments GROUP BY Month;
+-- Assuming discharge/admission dates exist in Medical_Records
+SELECT record_id, DATEDIFF(discharge_date, admission_date) AS Stay_Duration FROM Medical_Records;
+SELECT DATE_FORMAT(treatment_date, '%d-%m-%Y') FROM Medical_Records;
+
+-- Task 10: String Manipulation
+SELECT UPPER(name) FROM Patients;
+SELECT TRIM(name) FROM Doctors;
+SELECT COALESCE(phone_number, 'Not Available') FROM Patients;
+
+-- Task 11: Window Functions
+SELECT name, COUNT(patient_id) OVER(PARTITION BY doctor_id) as Treated_Count FROM Doctors; -- simplified rank logic
+SELECT appointment_date, COUNT(*) OVER(ORDER BY appointment_date) as Running_Total FROM Appointments;
+
+-- Task 12: CASE Expressions
+SELECT name, 
+CASE 
+    WHEN years_of_experience > 15 THEN 'Senior'
+    WHEN years_of_experience BETWEEN 5 AND 15 THEN 'Mid-Level'
+    ELSE 'Junior'
+END AS Doctor_Category
+FROM Doctors;
+
+-- CRUD: Delete old cancelled appointments
+DELETE FROM Appointments 
+WHERE status = 'Cancelled' 
+AND appointment_date < DATE_SUB(NOW(), INTERVAL 6 MONTH);
