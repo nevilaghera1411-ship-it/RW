@@ -1,0 +1,183 @@
+1. Students table
+
+CREATE TABLE Students1 (
+    StudentID INT PRIMARY KEY,
+    FirstName VARCHAR(50),
+    LastName VARCHAR(50),
+    Email VARCHAR(100),
+    BirthDate DATE,
+    EnrollmentDate DATE
+);
+
+INSERT INTO Students1 VALUES(1, 'John', 'Doe', 'john.doe@email.com', '15-jan-2000', '01-aug-2022');
+INSERT INTO Students1 VALUES(2, 'Jane', 'Smith', 'jane.smith@email.com','25-may-1999','01-aug-2021');
+
+2.Courses Table
+
+CREATE TABLE Courses (
+    CourseID INT PRIMARY KEY,
+    CourseName VARCHAR(100),
+    DepartmentID INT,
+    Credits INT
+);
+
+INSERT INTO Courses VALUES (101, 'Introduction to SQL', 1, 3);
+INSERT INTO Courses VALUES (102, 'Data Structures', 2, 4);
+
+
+3.Instructors Table
+
+CREATE TABLE Instructors (
+    InstructorID INT PRIMARY KEY,
+    FirstName VARCHAR(50),
+    LastName VARCHAR(50),
+    Email VARCHAR(100),
+    DepartmentID INT
+);
+
+INSERT INTO Instructors VALUES (1, 'Alice', 'Johnson', 'alice.johnson@univ.com', 1);
+INSERT INTO Instructors VALUES (2, 'Bob', 'Lee', 'bob.lee@univ.com', 2);
+
+
+4.Enrollments Table
+
+CREATE TABLE Enrollments (
+    EnrollmentID INT PRIMARY KEY,
+    Student1ID INT,
+    CourseID INT,
+    EnrollmentDate DATE
+);
+
+INSERT INTO Enrollments VALUES (1, 1, 101, '01-aug-2022');
+INSERT INTO Enrollments VALUES (2, 2, 102, '01-aug-2021');
+
+5.Departments Table
+
+CREATE TABLE Departments (
+    DepartmentID INT PRIMARY KEY,
+    DepartmentName VARCHAR(100)
+);
+
+INSERT INTO Departments VALUES (1, 'Computer Science');
+INSERT INTO Departments VALUES (2, 'Mathematics');
+
+
+Queries
+
+
+2. Retrieve students who enrolled after 2022
+
+SELECT * FROM Students 
+WHERE EnrollmentDate > '31-dec-2022';
+
+
+3. Retrieve courses offered by the Mathematics department (Limit 5)
+
+SELECT c.CourseName 
+FROM Courses c
+JOIN Departments d ON c.DepartmentID = d.DepartmentID
+WHERE d.DepartmentName = 'Mathematics'
+LIMIT 5;
+
+
+4.Count students per course (Filtering for > 5 students)
+
+SELECT CourseID, COUNT(StudentID) AS TotalStudents
+FROM Enrollments
+GROUP BY CourseID
+HAVING COUNT(StudentID) > 5;
+
+5. Find students enrolled in BOTH "Introduction to SQL" and "Data Structures"
+
+SELECT StudentID 
+FROM Enrollments 
+WHERE CourseID = 101 -- Introduction to SQL
+INTERSECT
+SELECT StudentID 
+FROM Enrollments 
+WHERE CourseID = 102; -- Data Structures
+
+6. Find students enrolled in EITHER "Introduction to SQL" or "Data Structures"
+
+SELECT DISTINCT StudentID 
+FROM Enrollments 
+WHERE CourseID IN (101, 102);
+
+7. Calculate the average number of credits for all courses
+
+SELECT AVG(Credits) AS AverageCredits 
+FROM Courses;
+
+8. Find the maximum salary of instructors in the Computer Science department
+
+SELECT MAX(i.Salary) AS MaxSalary
+FROM Instructors i
+JOIN Departments d ON i.DepartmentID = d.DepartmentID
+WHERE d.DepartmentName = 'Computer Science';
+
+9. Count the number of students enrolled in each department
+
+SELECT d.DepartmentName, COUNT(e.StudentID) AS StudentCount
+FROM Enrollments e
+JOIN Courses c ON e.CourseID = c.CourseID
+JOIN Departments d ON c.DepartmentID = d.DepartmentID
+GROUP BY d.DepartmentName;
+
+10. INNER JOIN: Retrieve students and their corresponding courses
+
+SELECT s.FirstName, s.LastName, c.CourseName
+FROM Students s
+INNER JOIN Enrollments e ON s.StudentID = e.StudentID
+INNER JOIN Courses c ON e.CourseID = c.CourseID;
+
+11. LEFT JOIN: Retrieve all students and their corresponding courses, if any
+
+SELECT s.FirstName, s.LastName, c.CourseName
+FROM Students s
+LEFT JOIN Enrollments e ON s.StudentID = e.StudentID
+LEFT JOIN Courses c ON e.CourseID = c.CourseID;
+
+12. Subquery: Find students enrolled in courses that have more than 10 students
+
+SELECT FirstName, LastName
+FROM Students
+WHERE StudentID IN (
+    SELECT StudentID 
+    FROM Enrollments 
+    WHERE CourseID IN (
+        SELECT CourseID 
+        FROM Enrollments 
+        GROUP BY CourseID 
+        HAVING COUNT(StudentID) > 10
+    )
+);
+
+
+13. Extract the year from the EnrollmentDate of students
+
+SELECT EnrollmentID, YEAR(EnrollmentDate) AS EnrollmentYear
+FROM Enrollments;
+
+14. Concatenate the instructor's first and last name
+
+SELECT InstructorID, CONCAT(FirstName, ' ', LastName) AS InstructorFullName
+FROM Instructors;
+
+15. Calculate the running total of students enrolled in courses
+
+SELECT EnrollmentID, EnrollmentDate,
+       COUNT(StudentID) OVER (ORDER BY EnrollmentDate) AS RunningTotalStudents
+FROM Enrollments;
+
+16. Label students as 'Senior' or 'Junior' based on enrollment year
+
+SELECT StudentID, EnrollmentDate,
+       CASE 
+           WHEN EnrollmentDate <= DATE_SUB(CURDATE(), INTERVAL 4 YEAR) THEN 'Senior'
+           ELSE 'Junior'
+       END AS StudentLevel
+FROM Enrollments;
+
+
+
+
